@@ -5,8 +5,23 @@ from django.urls import reverse
 
 
 class PostQuerySet(models.QuerySet):
-    def popular(self):
-        return self.annotate(likes_count=Count('likes')).order_by('-likes_count')
+    def popular(self, max_posts_count=5):
+        return (self.annotate(likes_count=Count('likes'))
+                    .order_by('-likes_count')[:max_posts_count]
+                    .fetch_with_author_and_tags_and_comments_count())
+
+    def fresh(self, max_posts_count=5):
+        return (self.order_by('-published_at')[:max_posts_count]
+                    .annotate(comments_count=Count('comments'))
+                    .fetch_with_author_and_tags())
+
+    def detail(self, slug):
+        comments_prefetch = Prefetch('comments', queryset=Comment.objects.prefetch_related('author'))
+        return (self.filter(slug=slug)
+                    .annotate(likes_count=Count('likes'))
+                    .prefetch_related('author', comments_prefetch)
+                    .fetch_with_author_and_tags()
+                    .first())
 
     def fetch_with_comments_count(posts):
         """Функция для присоединения к каждому из постов запроса псевдо-поля
@@ -28,7 +43,7 @@ class PostQuerySet(models.QuerySet):
         tags_prefetch = Prefetch('tags', queryset=Tag.objects.fetch_with_posts_count())
         return self.prefetch_related('author', tags_prefetch)
 
-    def fetch_with_author_tags_and_comments_count(self):
+    def fetch_with_author_and_tags_and_comments_count(self):
         return self.fetch_with_author_and_tags().fetch_with_comments_count()
 
 
@@ -68,8 +83,8 @@ class Post(models.Model):
 
 
 class TagQuerySet(models.QuerySet):
-    def popular(self):
-        return self.annotate(posts_count=Count('posts')).order_by('-posts_count')
+    def popular(self, max_tags_count=5):
+        return self.annotate(posts_count=Count('posts')).order_by('-posts_count')[:max_tags_count]
 
     def fetch_with_posts_count(self):
         return self.annotate(posts_count=Count('posts'))
