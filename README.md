@@ -17,13 +17,13 @@ pip install -r requirements.txt
 Создайте базу данных SQLite
 
 ```sh
-python3 manage.py migrate
+python manage.py migrate
 ```
 
 Запустите разработческий сервер
 
 ```
-python3 manage.py runserver
+python manage.py runserver
 ```
 
 ## Переменные окружения
