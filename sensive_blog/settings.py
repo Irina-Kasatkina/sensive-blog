@@ -86,9 +86,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-RU'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
@@ -106,6 +106,7 @@ MEDIA_URL = '/media/'
 
 def show_toolbar(request):
     return True
+
 
 if DEBUG:
     MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
@@ -133,8 +134,6 @@ if DEBUG:
         'debug_toolbar.panels.profiling.ProfilingPanel',
     ]
 
-
     DEBUG_TOOLBAR_CONFIG = {
         'SHOW_TOOLBAR_CALLBACK': show_toolbar
     }
-

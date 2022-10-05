@@ -1,7 +1,7 @@
 from django.db.models import Count, Prefetch
 from django.shortcuts import render
 
-from blog.models import Comment, Post, Tag
+from blog.models import Post, Tag
 
 
 def serialize_post(post):
@@ -72,15 +72,11 @@ def post_detail(request, slug):
 
 
 def tag_filter(request, tag_title):
-    posts_prefetch = Prefetch('posts', queryset=Post.objects.annotate(comments_count=Count('comments')).fetch_with_author_and_tags())
-    tag = (Tag.objects.filter(title=tag_title)
-                      .annotate(posts_count=Count('posts'))
-                      .prefetch_related(posts_prefetch)
-                      .first())
+    tag = Tag.objects.tag_by_title(tag_title)
+    related_posts = tag.posts.all()[:20]
 
     most_popular_tags = Tag.objects.popular()
     most_popular_posts = Post.objects.popular()
-    related_posts = tag.posts.all()[:20]
 
     context = {
         'tag': tag.title,

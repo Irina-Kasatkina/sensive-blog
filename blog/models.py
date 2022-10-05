@@ -23,21 +23,21 @@ class PostQuerySet(models.QuerySet):
                     .fetch_with_author_and_tags()
                     .first())
 
-    def fetch_with_comments_count(posts):
+    def fetch_with_comments_count(self):
         """Функция для присоединения к каждому из постов запроса псевдо-поля
            comments_count с количеством комментариев к посту.
            Вызывать эту функцию предпочтительнее, чем использовать второй annotate
            в запросе, потому что два annotate приводят к очень долгому выполнению запроса.
         """
 
-        posts_ids = [post.id for post in posts]
+        posts_ids = [post.id for post in self]
         posts_with_comments_count = (Post.objects.filter(id__in=posts_ids)
                                                  .annotate(comments_count=Count('comments')))
         ids_and_comments = posts_with_comments_count.values_list('id', 'comments_count')
         count_for_id = dict(ids_and_comments)
-        for post in posts:
+        for post in self:
             post.comments_count = count_for_id[post.id]
-        return list(posts)
+        return list(self)
 
     def fetch_with_author_and_tags(self):
         tags_prefetch = Prefetch('tags', queryset=Tag.objects.fetch_with_posts_count())
@@ -48,9 +48,9 @@ class PostQuerySet(models.QuerySet):
 
 
 class Post(models.Model):
-    title = models.CharField('Заголовок', max_length=200)
+    title = models.CharField('Заголовок', max_length=200, db_index=True)
     text = models.TextField('Текст')
-    slug = models.SlugField('Название в виде url', max_length=200)
+    slug = models.SlugField('Название в виде url', max_length=200, db_index=True)
     image = models.ImageField('Картинка')
     published_at = models.DateTimeField('Дата и время публикации')
 
@@ -73,11 +73,8 @@ class Post(models.Model):
     def __str__(self):
         return self.title
 
-    def get_absolute_url(self):
-        return reverse('post_detail', args={'slug': self.slug})
-
     class Meta:
-        ordering = ['-published_at']
+        ordering = ['title']
         verbose_name = 'пост'
         verbose_name_plural = 'посты'
 
@@ -89,9 +86,20 @@ class TagQuerySet(models.QuerySet):
     def fetch_with_posts_count(self):
         return self.annotate(posts_count=Count('posts'))
 
+    def tag_by_title(self, tag_title):
+        posts_prefetch = (
+            Prefetch('posts',
+                     queryset=Post.objects.annotate(comments_count=Count('comments'))
+                                          .fetch_with_author_and_tags())
+        )
+        return (self.filter(title=tag_title)
+                            .annotate(posts_count=Count('posts'))
+                            .prefetch_related(posts_prefetch)
+                            .first())
+
 
 class Tag(models.Model):
-    title = models.CharField('Тег', max_length=20, unique=True)
+    title = models.CharField('Тег', max_length=20, db_index=True, unique=True)
     objects = TagQuerySet.as_manager()
 
     def __str__(self):
@@ -99,9 +107,6 @@ class Tag(models.Model):
 
     def clean(self):
         self.title = self.title.lower()
-
-    def get_absolute_url(self):
-        return reverse('tag_filter', args={'tag_title': self.slug})
 
     class Meta:
         ordering = ['title']
